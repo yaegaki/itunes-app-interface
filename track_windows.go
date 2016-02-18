@@ -1,17 +1,21 @@
 package itunes
 
-import (
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
-)
-
 type track struct {
-	handle *ole.IDispatch
+	highID int
+	lowID  int
+	it     *itunes
 	Name   string
 	Artist string
 }
 
 func (t *track) Play() error {
-	_, err := oleutil.CallMethod(t.handle, "Play")
+	v, err := t.it.tracks.GetProperty("ItemByPersistentID", t.highID, t.lowID)
+	if err != nil {
+		return err
+	}
+	handle := v.ToIDispatch()
+	defer handle.Release()
+
+	_, err = handle.CallMethod("Play")
 	return err
 }

@@ -30,6 +30,7 @@ func Test() error {
 	if err != nil {
 		return err
 	}
+	defer it.Close()
 
 	output, err := it.GetTracks()
 	if err != nil {
@@ -41,7 +42,10 @@ func Test() error {
 	for track := range output {
 		if strings.Contains(s(track.Name), word) {
 			log.Printf("Play: %v", track.Name)
-			track.Play()
+			err = track.Play()
+			if err != nil {
+				return err
+			}
 			break
 		}
 	}
