@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/yaegaki/itunes-app-interface"
 	"log"
+
+	"github.com/yaegaki/itunes-app-interface"
 )
 
 func main() {
