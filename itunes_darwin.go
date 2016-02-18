@@ -102,6 +102,11 @@ func CreateItunes() (*itunes, error) {
 	return &itunes{}, nil
 }
 
+// for compatibility
+func (_ *itunes) Close() {
+	return
+}
+
 func getTrack(line string) (*track, error) {
 	if line == "" {
 		return nil, errors.New("result is empty.")
