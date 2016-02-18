@@ -1,9 +1,10 @@
 package itunes
 
 import (
+	"errors"
+
 	ole "github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"errors"
 )
 
 type itunes struct {
@@ -24,7 +25,7 @@ func CreateItunes() (*itunes, error) {
 		return nil, err
 	}
 
-	handle, err :=obj.QueryInterface(ole.IID_IDispatch)
+	handle, err := obj.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func getTrack(handle *ole.IDispatch) (*track, error) {
 
 	track := &track{
 		handle: handle,
-		Name: values[0],
+		Name:   values[0],
 		Artist: values[1],
 	}
 
@@ -89,7 +90,7 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	count := int(v.Val)
 
 	output := make(chan *track)
-	go func () {
+	go func() {
 		defer close(output)
 		for i := 1; 1 <= count; i++ {
 			v, err = oleutil.GetProperty(trackHandle, "Item", i)
@@ -108,4 +109,3 @@ func (it *itunes) GetTracks() (chan *track, error) {
 
 	return output, nil
 }
-

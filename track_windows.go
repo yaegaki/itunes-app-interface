@@ -4,6 +4,6 @@ import "github.com/go-ole/go-ole"
 
 type track struct {
 	handle *ole.IDispatch
-	Name string
+	Name   string
 	Artist string
 }
