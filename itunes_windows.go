@@ -2,13 +2,19 @@ package itunes
 
 import (
 	"errors"
+	"sync"
 
 	ole "github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
 )
 
 type itunes struct {
-	handle *ole.IDispatch
+	unknwon   *ole.IUnknown
+	app       *ole.IDispatch
+	playlist  *ole.IDispatch
+	tracks    *ole.IDispatch
+	wg        sync.WaitGroup
+	closeChan chan bool
 }
 
 func Init() error {
@@ -30,19 +36,39 @@ func CreateItunes() (*itunes, error) {
 		return nil, err
 	}
 
-	return &itunes{handle}, nil
+	it := &itunes{}
+	it.unknwon = obj
+	it.app = handle
+	it.closeChan = make(chan bool)
+	return it, nil
+}
+
+func (it *itunes) Close() {
+	it.unknwon.Release()
+	it.app.Release()
+	if it.playlist != nil {
+		it.playlist.Release()
+	}
+
+	if it.tracks != nil {
+		it.tracks.Release()
+	}
+
+	close(it.closeChan)
+
+	it.wg.Wait()
 }
 
 func (it *itunes) CurrentTrack() (*track, error) {
-	v, err := oleutil.GetProperty(it.handle, "CurrentTrack")
+	v, err := it.app.GetProperty("CurrentTrack")
 	if err != nil {
 		return nil, err
 	}
 
-	return getTrack(v.ToIDispatch())
+	return createTrack(v.ToIDispatch())
 }
 
-func getTrack(handle *ole.IDispatch) (*track, error) {
+func createTrack(handle *ole.IDispatch) (*track, error) {
 	if handle == nil {
 		return nil, errors.New("handle is nil")
 	}
@@ -70,19 +96,23 @@ func getTrack(handle *ole.IDispatch) (*track, error) {
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	v, err := oleutil.GetProperty(it.handle, "LibraryPlaylist")
-	if err != nil {
-		return nil, err
+	if it.playlist == nil {
+		v, err := it.app.GetProperty("LibraryPlaylist")
+		if err != nil {
+			return nil, err
+		}
+		it.playlist = v.ToIDispatch()
 	}
 
-	v, err = oleutil.GetProperty(v.ToIDispatch(), "Tracks")
-	if err != nil {
-		return nil, err
+	if it.tracks == nil {
+		v, err := it.playlist.GetProperty("Tracks")
+		if err != nil {
+			return nil, err
+		}
+		it.tracks = v.ToIDispatch()
 	}
 
-	trackHandle := v.ToIDispatch()
-
-	v, err = oleutil.GetProperty(trackHandle, "Count")
+	v, err := it.tracks.GetProperty("Count")
 	if err != nil {
 		return nil, err
 	}
@@ -90,20 +120,27 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	count := int(v.Val)
 
 	output := make(chan *track)
+	it.wg.Add(1)
 	go func() {
+		defer it.wg.Done()
 		defer close(output)
-		for i := 1; 1 <= count; i++ {
-			v, err = oleutil.GetProperty(trackHandle, "Item", i)
+		for i := 1; i <= count; i++ {
+			v, err = it.tracks.GetProperty("Item", i)
 			if err != nil {
 				return
 			}
 
-			track, err := getTrack(v.ToIDispatch())
+			track, err := createTrack(v.ToIDispatch())
 			if err != nil {
 				return
 			}
 
-			output <- track
+			select {
+			case <-it.closeChan:
+				track.Close()
+				return
+			case output <- track:
+			}
 		}
 	}()
 

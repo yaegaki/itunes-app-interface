@@ -20,6 +20,7 @@ func Test() error {
 	if err != nil {
 		return err
 	}
+	defer it.Close()
 
 	output, err := it.GetTracks()
 	if err != nil {
@@ -28,6 +29,7 @@ func Test() error {
 
 	for track := range output {
 		log.Printf("name:%v artist:%v", track.Name, track.Artist)
+		track.Close()
 	}
 
 	return nil

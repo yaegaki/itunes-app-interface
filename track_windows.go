@@ -1,9 +1,6 @@
 package itunes
 
-import (
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
-)
+import "github.com/go-ole/go-ole"
 
 type track struct {
 	handle *ole.IDispatch
@@ -12,6 +9,10 @@ type track struct {
 }
 
 func (t *track) Play() error {
-	_, err := oleutil.CallMethod(t.handle, "Play")
+	_, err := t.handle.CallMethod("Play")
 	return err
+}
+
+func (t *track) Close() {
+	t.handle.Release()
 }

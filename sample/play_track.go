@@ -30,6 +30,7 @@ func Test() error {
 	if err != nil {
 		return err
 	}
+	defer it.Close()
 
 	output, err := it.GetTracks()
 	if err != nil {
@@ -39,11 +40,14 @@ func Test() error {
 	// play track that contains `word` in the title.
 	word := s(strings.Join(os.Args[1:], ""))
 	for track := range output {
-		if strings.Contains(s(track.Name), word) {
-			log.Printf("Play: %v", track.Name)
-			track.Play()
-			break
+		name := track.Name
+		if strings.Contains(s(name), word) {
+			log.Printf("Play: %v", name)
+			err = track.Play()
+			track.Close()
+			return err
 		}
+		track.Close()
 	}
 
 	return nil

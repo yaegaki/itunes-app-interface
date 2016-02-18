@@ -19,3 +19,7 @@ func (t *track) Play() error {
 	fmt.Println(<-o)
 	return err
 }
+
+// for compatibility
+func (_ *track) Close() {
+}
