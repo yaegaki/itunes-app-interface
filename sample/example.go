@@ -20,7 +20,6 @@ func Test() error {
 	if err != nil {
 		return err
 	}
-	defer it.Close()
 
 	output, err := it.GetTracks()
 	if err != nil {
