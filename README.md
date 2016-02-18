@@ -1,7 +1,7 @@
 # iTunes app interface
 Cross Platform(OSX and Windows) iTunes application interface.
 
-## install
+## Install
 ```
 go get github.com/yaegaki/itunes-app-interface
 ```
