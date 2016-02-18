@@ -7,6 +7,7 @@ go get github.com/yaegaki/itunes-app-interface
 ```
 
 ## Example
+See also: [example](https://github.com/yaegaki/itunes-app-interface/tree/master/example)
 ```go
 package main
 
