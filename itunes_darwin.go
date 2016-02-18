@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -13,14 +14,18 @@ type itunes struct {
 }
 
 var baseScript = `
+var app = Application("iTunes");
 function p(/*...args*/) {
 	console.log(Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
 }
 
 function logTrack(track) {
-	p(track.name(), track.artist());
+	p(track.id(), track.name(), track.artist());
 }
-var app = Application("iTunes");
+
+function findTrackById(id) {
+	return app.tracks.byId(id);
+}
 `
 
 var currentTrackScript = `
@@ -105,14 +110,24 @@ func getTrack(line string) (*track, error) {
 	values := decodeOutput(line)
 	count := len(values)
 
-	name := values[0]
-	var artist = ""
+	id, err := strconv.Atoi(values[0])
+	if err != nil {
+		return nil, err
+	}
 
-	if count > 1 {
-		artist = values[1]
+	count = len(values)
+	var name, artist string
+
+	switch {
+	case count > 1:
+		name = values[1]
+		fallthrough
+	case count > 2:
+		artist = values[2]
 	}
 
 	track := &track{
+		id:     id,
 		Name:   name,
 		Artist: artist,
 	}
