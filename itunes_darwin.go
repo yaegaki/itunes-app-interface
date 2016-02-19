@@ -29,18 +29,27 @@ function findTrackById(id) {
 var baseASScript = `
 on FindTrackByPersistentID(persistentID)
     tell application "iTunes"
-        set pid to persistentID
-        repeat with i from 1 to count of track
-            set t to track i
-            set _pid to (persistent ID of t) as string
-            if _pid is pid then
-                return t
-            end if
-        end repeat
-
-        return null
+    	set l to (every tracks whose persistent ID is persistentID)
+    	set c to count of l
+    	if c is 0 then
+    		return null
+		else
+			return item 1 of l
+		end if
     end tell
 end FindTrackByPersistentID
+
+on FindTrackByName(n)
+    tell application "iTunes"
+    	set l to search playlist 1 for n only songs
+    	set c to count of l
+    	if c is 0 then
+    		return null
+		else
+			return item 1 of l
+		end if
+    end tell
+end
 `
 
 var currentTrackScript = `

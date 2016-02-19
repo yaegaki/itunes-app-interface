@@ -3,6 +3,8 @@ package itunes
 import (
 	"errors"
 	"fmt"
+	"log"
+	"strings"
 )
 
 type track struct {
@@ -17,6 +19,18 @@ tell application "iTunes"
 	if t is not null then
 		play t
 	end if
+end tell
+`
+
+var getArtworksScript = `
+tell application "iTunes"
+    set t to FindTrackByName("%v") of me
+    if t is not null then
+        repeat with a in artworks of t
+            set f to format of a
+            log f
+        end repeat
+    end
 end tell
 `
 
@@ -54,7 +68,44 @@ func (_ *track) Close() {
 }
 
 func (t *track) Play() error {
-	o, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
-	fmt.Println(<-o)
-	return err
+	_, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
+	if err != nil {
+		return nil
+	}
+	return nil
+}
+
+func (t *track) GetArtworks() (chan *artwork, error) {
+	formats, err := execAS(fmt.Sprintf(getArtworksScript, t.Name))
+	if err != nil {
+		return nil, err
+	}
+
+	output := make(chan *artwork)
+	go func() {
+		defer close(output)
+		for line := range formats {
+			f := strings.Split(line, " ")[0]
+			var format ArtworkFormat
+			switch f {
+			case JPEG.String():
+				format = JPEG
+			case PNG.String():
+				format = PNG
+			case BMP.String():
+				format = BMP
+			default:
+				log.Printf("unknown format:%v", line)
+				continue
+			}
+
+			output <- &artwork{Format: format}
+		}
+	}()
+
+	return output, nil
+}
+
+func (t *track) ID() string {
+	return t.persistentID
 }
