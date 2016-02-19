@@ -23,3 +23,17 @@ func (a ArtworkFormat) String() string {
 
 	return ""
 }
+
+func (a ArtworkFormat) Ext() string {
+	switch a {
+	case JPEG:
+		return ".jpg"
+	case PNG:
+		return ".png"
+	case BMP:
+		return ".bmp"
+	}
+
+	return ""
+
+}
