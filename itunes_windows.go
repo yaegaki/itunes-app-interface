@@ -1,7 +1,6 @@
 package itunes
 
 import (
-	"errors"
 	"sync"
 
 	ole "github.com/go-ole/go-ole"
@@ -13,7 +12,7 @@ type itunes struct {
 	app       *ole.IDispatch
 	playlist  *ole.IDispatch
 	tracks    *ole.IDispatch
-	wg        sync.WaitGroup
+	wg        *sync.WaitGroup
 	closeChan chan bool
 }
 
@@ -36,10 +35,12 @@ func CreateItunes() (*itunes, error) {
 		return nil, err
 	}
 
-	it := &itunes{}
-	it.unknwon = obj
-	it.app = handle
-	it.closeChan = make(chan bool)
+	it := &itunes{
+		unknwon:   obj,
+		app:       handle,
+		closeChan: make(chan bool),
+		wg:        new(sync.WaitGroup),
+	}
 	return it, nil
 }
 
@@ -60,42 +61,21 @@ func (it *itunes) Close() {
 }
 
 func (it *itunes) CurrentTrack() (*track, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
 	v, err := it.app.GetProperty("CurrentTrack")
 	if err != nil {
 		return nil, err
 	}
 
-	return createTrack(v.ToIDispatch())
-}
-
-func createTrack(handle *ole.IDispatch) (*track, error) {
-	if handle == nil {
-		return nil, errors.New("handle is nil")
-	}
-	properties := [...]string{
-		"Name", "Artist",
-	}
-	values := make([]string, len(properties))
-
-	for i, property := range properties {
-		v, err := oleutil.GetProperty(handle, property)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = v.ToString()
-	}
-
-	track := &track{
-		handle: handle,
-		Name:   values[0],
-		Artist: values[1],
-	}
-
-	return track, nil
+	return createTrack(v.ToIDispatch(), it.wg)
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
 	if it.playlist == nil {
 		v, err := it.app.GetProperty("LibraryPlaylist")
 		if err != nil {
@@ -120,17 +100,18 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	count := int(v.Val)
 
 	output := make(chan *track)
-	it.wg.Add(1)
 	go func() {
+		it.wg.Add(1)
 		defer it.wg.Done()
 		defer close(output)
+
 		for i := 1; i <= count; i++ {
 			v, err = it.tracks.GetProperty("Item", i)
 			if err != nil {
 				return
 			}
 
-			track, err := createTrack(v.ToIDispatch())
+			track, err := createTrack(v.ToIDispatch(), it.wg)
 			if err != nil {
 				return
 			}
