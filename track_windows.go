@@ -64,6 +64,8 @@ func (t *track) Close() {
 }
 
 func (t *track) Play() error {
+	t.wg.Add(1)
+	defer t.wg.Done()
 	_, err := t.handle.CallMethod("Play")
 	return err
 }
