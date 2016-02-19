@@ -28,7 +28,7 @@ tell application "iTunes"
     if t is not null then
         repeat with a in artworks of t
             set f to format of a
-            log f
+            P(f) of me
         end repeat
     end
 end tell
@@ -68,10 +68,16 @@ func (_ *track) Close() {
 }
 
 func (t *track) Play() error {
-	_, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
+	o, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
 	if err != nil {
 		return nil
 	}
+
+	_, err = validateResult(<-o)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -84,7 +90,14 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 	output := make(chan *artwork)
 	go func() {
 		defer close(output)
+		index := 1
 		for line := range formats {
+			line, err = validateResult(line)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
 			f := strings.Split(line, " ")[0]
 			var format ArtworkFormat
 			switch f {
@@ -99,7 +112,12 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 				continue
 			}
 
-			output <- &artwork{Format: format}
+			output <- &artwork{
+				track:  t,
+				index:  index,
+				Format: format,
+			}
+			index++
 		}
 	}()
 

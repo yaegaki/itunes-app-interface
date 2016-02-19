@@ -2,7 +2,10 @@ package itunes
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os/exec"
 	"strings"
@@ -14,7 +17,7 @@ type itunes struct {
 var baseJSScript = `
 var app = Application("iTunes");
 function p(/*...args*/) {
-	console.log(Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
+	console.log("!"+Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
 }
 
 function logTrack(track) {
@@ -27,6 +30,10 @@ function findTrackById(id) {
 `
 
 var baseASScript = `
+on P(o)
+	log "!" & o
+end
+
 on FindTrackByPersistentID(persistentID)
     tell application "iTunes"
         try
@@ -35,7 +42,7 @@ on FindTrackByPersistentID(persistentID)
             return null
         end try
     end tell
-end FindTrackByPersistentID
+end
 
 on FindTrackByName(n)
     tell application "iTunes"
@@ -47,6 +54,21 @@ on FindTrackByName(n)
 			return item 1 of l
 		end if
     end tell
+end
+
+on SaveArtworkToFile(persistentID, index, path)
+    set fp to POSIX file path
+	tell application "iTunes"
+		set t to FindTrackByPersistentID(persistentID) of me
+		if t is not null then
+			set art to artworks index of t
+			set d to raw data of art
+			set f to open for access fp with write permission
+			set eof f to 0
+			write d to f
+			close access f
+		end
+	end tell
 end
 `
 
@@ -95,6 +117,19 @@ func execScript(cmd *exec.Cmd, script string) (chan string, error) {
 	return output, err
 }
 
+func validateResult(result string) (string, error) {
+	l := len(result)
+	if l != 0 && result[0] != "!"[0] {
+		return "", errors.New(fmt.Sprintf("osascript error:%v", result))
+	}
+
+	if l != 0 {
+		result = result[1:]
+	}
+
+	return result, nil
+}
+
 func execAS(script string) (chan string, error) {
 	cmd := exec.Command("osascript")
 	return execScript(cmd, baseASScript+script)
@@ -139,12 +174,18 @@ func (_ *itunes) Close() {
 }
 
 func (it *itunes) CurrentTrack() (*track, error) {
-	output, err := execJS(currentTrackScript)
+	o, err := execJS(currentTrackScript)
 	if err != nil {
 		return nil, err
 	}
 
-	return createTrack(<-output)
+	result := <-o
+	result, err = validateResult(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return createTrack(result)
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
@@ -157,6 +198,12 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	go func() {
 		defer close(result)
 		for line := range output {
+			line, err = validateResult(line)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
 			track, err := createTrack(line)
 			if err == nil {
 				result <- track
