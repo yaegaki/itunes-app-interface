@@ -1,25 +1,65 @@
 package itunes
 
 import (
+	"errors"
 	"fmt"
 )
 
 type track struct {
-	id     int
-	Name   string
-	Artist string
+	persistentID string
+	Name         string
+	Artist       string
 }
 
 var playTrackScript = `
-findTrackById(%d).play();
+tell application "iTunes"
+    set pid to "%v"
+    repeat with i from 1 to count of track
+    	set t to track i
+        set _pid to (persistent ID of t) as string
+        if _pid is pid then
+        	play t
+        	exit repeat
+        end if
+    end repeat
+end tell
 `
 
-func (t *track) Play() error {
-	o, err := execScript(fmt.Sprintf(playTrackScript, t.id))
-	fmt.Println(<-o)
-	return err
+func createTrack(line string) (*track, error) {
+	if line == "" {
+		return nil, errors.New("result is empty.")
+	}
+
+	values := decodeOutput(line)
+	count := len(values)
+
+	persistentID := values[0]
+	count = len(values)
+	var name, artist string
+
+	switch {
+	case count > 1:
+		name = values[1]
+		fallthrough
+	case count > 2:
+		artist = values[2]
+	}
+
+	track := &track{
+		persistentID: persistentID,
+		Name:         name,
+		Artist:       artist,
+	}
+
+	return track, nil
 }
 
 // for compatibility
 func (_ *track) Close() {
+}
+
+func (t *track) Play() error {
+	o, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
+	fmt.Println(<-o)
+	return err
 }

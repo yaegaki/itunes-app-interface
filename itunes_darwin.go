@@ -2,11 +2,9 @@ package itunes
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"net/url"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -20,7 +18,7 @@ function p(/*...args*/) {
 }
 
 function logTrack(track) {
-	p(track.id(), track.name(), track.artist());
+	p(track.persistentID(), track.name(), track.artist());
 }
 
 function findTrackById(id) {
@@ -36,8 +34,7 @@ var getTracksScript = `
 app.tracks().forEach(logTrack);
 `
 
-func execScript(script string) (chan string, error) {
-	cmd := exec.Command("osascript", "-l", "JavaScript")
+func execScript(cmd *exec.Cmd, script string) (chan string, error) {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -61,7 +58,7 @@ func execScript(script string) (chan string, error) {
 		}
 	}()
 
-	_, err = io.WriteString(stdin, baseScript+script)
+	_, err = io.WriteString(stdin, script)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +69,16 @@ func execScript(script string) (chan string, error) {
 	}
 
 	return output, err
+}
+
+func execAS(script string) (chan string, error) {
+	cmd := exec.Command("osascript")
+	return execScript(cmd, script)
+}
+
+func execJS(script string) (chan string, error) {
+	cmd := exec.Command("osascript", "-l", "JavaScript")
+	return execScript(cmd, baseScript+script)
 }
 
 func decodeOutput(str string) []string {
@@ -107,50 +114,17 @@ func (_ *itunes) Close() {
 	return
 }
 
-func getTrack(line string) (*track, error) {
-	if line == "" {
-		return nil, errors.New("result is empty.")
-	}
-
-	values := decodeOutput(line)
-	count := len(values)
-
-	id, err := strconv.Atoi(values[0])
-	if err != nil {
-		return nil, err
-	}
-
-	count = len(values)
-	var name, artist string
-
-	switch {
-	case count > 1:
-		name = values[1]
-		fallthrough
-	case count > 2:
-		artist = values[2]
-	}
-
-	track := &track{
-		id:     id,
-		Name:   name,
-		Artist: artist,
-	}
-
-	return track, nil
-}
-
 func (it *itunes) CurrentTrack() (*track, error) {
-	output, err := execScript(currentTrackScript)
+	output, err := execJS(currentTrackScript)
 	if err != nil {
 		return nil, err
 	}
 
-	return getTrack(<-output)
+	return createTrack(<-output)
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	output, err := execScript(getTracksScript)
+	output, err := execJS(getTracksScript)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +133,7 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	go func() {
 		defer close(result)
 		for line := range output {
-			track, err := getTrack(line)
+			track, err := createTrack(line)
 			if err == nil {
 				result <- track
 			}
