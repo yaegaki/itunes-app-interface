@@ -7,7 +7,10 @@ go get github.com/yaegaki/itunes-app-interface
 ```
 
 ## Sample
-See also: [sample](https://github.com/yaegaki/itunes-app-interface/tree/master/sample)
+See also:
+* [sample](https://github.com/yaegaki/itunes-app-interface/tree/master/sample)
+* [go-nowplaying](https://github.com/yaegaki/go-nowplaying)
+
 
 ### List all songs
 ```go
