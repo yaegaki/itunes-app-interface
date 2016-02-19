@@ -29,13 +29,11 @@ function findTrackById(id) {
 var baseASScript = `
 on FindTrackByPersistentID(persistentID)
     tell application "iTunes"
-    	set l to (every tracks whose persistent ID is persistentID)
-    	set c to count of l
-    	if c is 0 then
-    		return null
-		else
-			return item 1 of l
-		end if
+        try
+            return some track whose persistent ID is persistentID
+        on error
+            return null
+        end try
     end tell
 end FindTrackByPersistentID
 
