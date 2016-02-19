@@ -10,6 +10,8 @@ import (
 type artwork struct {
 	handle *ole.IDispatch
 	parent *sync.WaitGroup
+
+	Format ArtworkFormat
 }
 
 func (a *artwork) Close() {
@@ -23,17 +25,17 @@ func createArtwork(handle *ole.IDispatch, parent *sync.WaitGroup) (*artwork, err
 	}
 	parent.Add(1)
 
+	v, err := handle.GetProperty("Format")
+	if err != nil {
+		parent.Done()
+		return nil, err
+	}
+
 	artwork := &artwork{
 		handle: handle,
 		parent: parent,
+		Format: ArtworkFormat(int(v.Val)),
 	}
-	return artwork, nil
-}
 
-func (a *artwork) Format() (ArtworkFormat, error) {
-	v, err := a.handle.GetProperty("Format")
-	if err != nil {
-		return Unknown, err
-	}
-	return ArtworkFormat(int(v.Val)), nil
+	return artwork, nil
 }
