@@ -8,6 +8,8 @@ go get github.com/yaegaki/itunes-app-interface
 
 ## Sample
 See also: [sample](https://github.com/yaegaki/itunes-app-interface/tree/master/sample)
+
+### List all songs
 ```go
 package main
 
@@ -45,5 +47,59 @@ func Test() error {
 
 	return nil
 }
+```
 
+### NowPlaying
+```go
+package main
+
+import (
+	"errors"
+	"log"
+
+	"github.com/yaegaki/itunes-app-interface"
+)
+
+func main() {
+	err := Test()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Test() error {
+	itunes.Init()
+	defer itunes.UnInit()
+	it, err := itunes.CreateItunes()
+	if err != nil {
+		return err
+	}
+	defer it.Close()
+
+	t, err := it.CurrentTrack()
+	if err != nil {
+		return errors.New("Does not play song.")
+	}
+	defer t.Close()
+
+	log.Printf("NowPlaying:%v %v", t.Name, t.Artist)
+
+	artworks, err := t.GetArtworks()
+	if err != nil {
+		return err
+	}
+
+	artwork := <-artworks
+	if artwork != nil {
+		defer artwork.Close()
+		path, err := artwork.SaveToFile("./", "nowplaying")
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Save artwork to:%v", path)
+	}
+
+	return nil
+}
 ```
