@@ -13,15 +13,10 @@ type track struct {
 
 var playTrackScript = `
 tell application "iTunes"
-    set pid to "%v"
-    repeat with i from 1 to count of track
-    	set t to track i
-        set _pid to (persistent ID of t) as string
-        if _pid is pid then
-        	play t
-        	exit repeat
-        end if
-    end repeat
+	set t to FindTrackByPersistentID("%v") of me
+	if t is not null then
+		play t
+	end if
 end tell
 `
 

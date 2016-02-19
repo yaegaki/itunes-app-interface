@@ -11,7 +11,7 @@ import (
 type itunes struct {
 }
 
-var baseScript = `
+var baseJSScript = `
 var app = Application("iTunes");
 function p(/*...args*/) {
 	console.log(Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
@@ -24,6 +24,23 @@ function logTrack(track) {
 function findTrackById(id) {
 	return app.tracks.byId(id);
 }
+`
+
+var baseASScript = `
+on FindTrackByPersistentID(persistentID)
+    tell application "iTunes"
+        set pid to persistentID
+        repeat with i from 1 to count of track
+            set t to track i
+            set _pid to (persistent ID of t) as string
+            if _pid is pid then
+                return t
+            end if
+        end repeat
+
+        return null
+    end tell
+end FindTrackByPersistentID
 `
 
 var currentTrackScript = `
@@ -73,12 +90,12 @@ func execScript(cmd *exec.Cmd, script string) (chan string, error) {
 
 func execAS(script string) (chan string, error) {
 	cmd := exec.Command("osascript")
-	return execScript(cmd, script)
+	return execScript(cmd, baseASScript+script)
 }
 
 func execJS(script string) (chan string, error) {
 	cmd := exec.Command("osascript", "-l", "JavaScript")
-	return execScript(cmd, baseScript+script)
+	return execScript(cmd, baseJSScript+script)
 }
 
 func decodeOutput(str string) []string {
