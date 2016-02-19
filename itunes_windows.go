@@ -45,6 +45,9 @@ func CreateItunes() (*itunes, error) {
 }
 
 func (it *itunes) Close() {
+	close(it.closeChan)
+	it.wg.Wait()
+
 	it.unknwon.Release()
 	it.app.Release()
 	if it.playlist != nil {
@@ -54,10 +57,6 @@ func (it *itunes) Close() {
 	if it.tracks != nil {
 		it.tracks.Release()
 	}
-
-	close(it.closeChan)
-
-	it.wg.Wait()
 }
 
 func (it *itunes) CurrentTrack() (*track, error) {

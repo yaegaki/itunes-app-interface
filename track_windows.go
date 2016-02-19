@@ -52,14 +52,14 @@ func createTrack(handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) 
 }
 
 func (t *track) Close() {
+	close(t.closeChan)
+	t.wg.Wait()
+
 	t.handle.Release()
 	if t.artworks != nil {
 		t.artworks.Release()
 	}
 
-	close(t.closeChan)
-
-	t.wg.Wait()
 	t.parent.Done()
 }
 
