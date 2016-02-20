@@ -242,6 +242,44 @@ func (it *itunes) Mute() (bool, error) {
 	return v.Value().(bool), nil
 }
 
+func (it *itunes) TrackCount() (int, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	if it.tracks == nil {
+		err := it.initTracks()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	v, err := it.tracks.GetProperty("Count")
+	if err != nil {
+		return 0, err
+	}
+
+	return int(v.Val), nil
+}
+
+func (it *itunes) GetTrack(index int) (*track, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	if it.tracks != nil {
+		err := it.initTracks()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	v, err := it.tracks.GetProperty("Item", index)
+	if err != nil {
+		return nil, err
+	}
+
+	return createTrack(it, v.ToIDispatch(), it.wg)
+}
+
 func (it *itunes) GetTracks() (chan *track, error) {
 	it.wg.Add(1)
 	defer it.wg.Done()
