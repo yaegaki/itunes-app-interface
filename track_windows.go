@@ -33,12 +33,14 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 
 	v, err := it.app.GetProperty("ITObjectPersistentIDHigh", handle)
 	if err != nil {
+		parent.Done()
 		return nil, err
 	}
 	highID := uint32(v.Val)
 
 	v, err = it.app.GetProperty("ITObjectPersistentIDLow", handle)
 	if err != nil {
+		parent.Done()
 		return nil, err
 	}
 	lowID := uint32(v.Val)
@@ -51,6 +53,7 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 	for i, property := range properties {
 		v, err := oleutil.GetProperty(handle, property)
 		if err != nil {
+			parent.Done()
 			return nil, err
 		}
 
