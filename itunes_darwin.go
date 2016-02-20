@@ -154,11 +154,11 @@ func (it *itunes) NextTrack() error {
 	return callMethod("nextTrack")
 }
 
-func (it *itunes) SetPlayerPosition(pos float32) error {
+func (it *itunes) SetPlayerPosition(pos int) error {
 	return putProperty("playerPosition", pos)
 }
 
-func (it *itunes) PlayerPosition() (float32, error) {
+func (it *itunes) PlayerPosition() (int, error) {
 	v, err := getProperty("playerPosition")
 	if err != nil {
 		return 0, err
@@ -173,7 +173,7 @@ func (it *itunes) PlayerPosition() (float32, error) {
 		return 0, err
 	}
 
-	return float32(result), nil
+	return int(result), nil
 }
 
 func (it *itunes) PlayerState() (PlayerState, error) {
