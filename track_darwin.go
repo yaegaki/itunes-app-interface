@@ -124,6 +124,6 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 	return output, nil
 }
 
-func (t *track) ID() string {
+func (t *track) PersistentID() string {
 	return t.persistentID
 }

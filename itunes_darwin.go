@@ -21,11 +21,22 @@ function p(/*...args*/) {
 }
 
 function logTrack(track) {
-	p(track.persistentID(), track.name(), track.artist());
+	if (track != null) {
+		p(track.persistentID(), track.name(), track.artist());
+	}
 }
 
 function findTrackById(id) {
 	return app.tracks.byId(id);
+}
+
+function findTrackByPersistentId(persistentId) {
+	var index = app.tracks.persistentID().indexOf(persistentId);
+	if (index < 0) {
+		return null;
+	}
+
+	return app.tracks[index];
 }
 `
 
@@ -78,6 +89,10 @@ logTrack(app.currentTrack());
 
 var getTracksScript = `
 app.tracks().forEach(logTrack);
+`
+
+var findTrackByPersistentIdScript = `
+logTrack(findTrackByPersistentId("%v"))
 `
 
 func execScript(cmd *exec.Cmd, script string) (chan string, error) {
@@ -212,4 +227,28 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	}()
 
 	return result, nil
+}
+
+func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
+	o, err := execJS(fmt.Sprintf(findTrackByPersistentIdScript, persistentID))
+	if err != nil {
+		return nil, err
+	}
+
+	result := <-o
+	result, err = validateResult(result)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == "" {
+		return nil, errors.New(fmt.Sprintf("not found track:%v", persistentID))
+	}
+
+	t, err := createTrack(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
 }
