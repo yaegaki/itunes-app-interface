@@ -2,6 +2,7 @@ package itunes
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -10,6 +11,9 @@ import (
 )
 
 type track struct {
+	itunes    *itunes
+	highID    uint32
+	lowID     uint32
 	handle    *ole.IDispatch
 	artworks  *ole.IDispatch
 	wg        *sync.WaitGroup
@@ -20,11 +24,25 @@ type track struct {
 	Artist string
 }
 
-func createTrack(handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) {
+func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) {
 	if handle == nil {
 		return nil, errors.New("handle is nil")
 	}
+
 	parent.Add(1)
+
+	v, err := it.app.GetProperty("ITObjectPersistentIDHigh", handle)
+	if err != nil {
+		return nil, err
+	}
+	highID := uint32(v.Val)
+
+	v, err = it.app.GetProperty("ITObjectPersistentIDLow", handle)
+	if err != nil {
+		return nil, err
+	}
+	lowID := uint32(v.Val)
+
 	properties := [...]string{
 		"Name", "Artist",
 	}
@@ -40,12 +58,16 @@ func createTrack(handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) 
 	}
 
 	track := &track{
+		itunes:    it,
+		highID:    highID,
+		lowID:     lowID,
 		handle:    handle,
-		Name:      values[0],
-		Artist:    values[1],
-		closeChan: make(chan bool),
-		parent:    parent,
 		wg:        new(sync.WaitGroup),
+		parent:    parent,
+		closeChan: make(chan bool),
+
+		Name:   values[0],
+		Artist: values[1],
 	}
 
 	return track, nil
@@ -117,4 +139,8 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 	}()
 
 	return output, nil
+}
+
+func (t *track) PersistentID() string {
+	return fmt.Sprintf("%x%x", t.highID, t.lowID)
 }

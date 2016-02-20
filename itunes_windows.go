@@ -1,6 +1,9 @@
 package itunes
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
 	"sync"
 
 	ole "github.com/go-ole/go-ole"
@@ -13,6 +16,8 @@ type itunes struct {
 	playlist  *ole.IDispatch
 	tracks    *ole.IDispatch
 	wg        *sync.WaitGroup
+	pm        *sync.Mutex
+	tm        *sync.Mutex
 	closeChan chan bool
 }
 
@@ -40,6 +45,8 @@ func CreateItunes() (*itunes, error) {
 		app:       handle,
 		closeChan: make(chan bool),
 		wg:        new(sync.WaitGroup),
+		pm:        new(sync.Mutex),
+		tm:        new(sync.Mutex),
 	}
 	return it, nil
 }
@@ -68,27 +75,59 @@ func (it *itunes) CurrentTrack() (*track, error) {
 		return nil, err
 	}
 
-	return createTrack(v.ToIDispatch(), it.wg)
+	return createTrack(it, v.ToIDispatch(), it.wg)
+}
+
+func (it *itunes) initPlaylist() error {
+	it.pm.Lock()
+	defer it.pm.Unlock()
+	if it.playlist != nil {
+		return nil
+	}
+
+	v, err := it.app.GetProperty("LibraryPlaylist")
+	if err != nil {
+		return err
+	}
+	it.playlist = v.ToIDispatch()
+
+	return nil
+}
+
+func (it *itunes) initTracks() error {
+	it.tm.Lock()
+	defer it.tm.Unlock()
+
+	var err error
+	if it.playlist == nil {
+		err := it.initPlaylist()
+		if err != nil {
+			return err
+		}
+	}
+
+	if it.tracks != nil {
+		return nil
+	}
+
+	v, err := it.playlist.GetProperty("Tracks")
+	if err != nil {
+		return err
+	}
+	it.tracks = v.ToIDispatch()
+
+	return nil
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
 	it.wg.Add(1)
 	defer it.wg.Done()
 
-	if it.playlist == nil {
-		v, err := it.app.GetProperty("LibraryPlaylist")
-		if err != nil {
-			return nil, err
-		}
-		it.playlist = v.ToIDispatch()
-	}
-
 	if it.tracks == nil {
-		v, err := it.playlist.GetProperty("Tracks")
+		err := it.initTracks()
 		if err != nil {
 			return nil, err
 		}
-		it.tracks = v.ToIDispatch()
 	}
 
 	v, err := it.tracks.GetProperty("Count")
@@ -110,7 +149,7 @@ func (it *itunes) GetTracks() (chan *track, error) {
 				return
 			}
 
-			track, err := createTrack(v.ToIDispatch(), it.wg)
+			track, err := createTrack(it, v.ToIDispatch(), it.wg)
 			if err != nil {
 				return
 			}
@@ -125,4 +164,58 @@ func (it *itunes) GetTracks() (chan *track, error) {
 	}()
 
 	return output, nil
+}
+
+const PersistentIDSize = 16
+
+func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	length := len(persistentID)
+	if length > PersistentIDSize || length < 0 {
+		return nil, errors.New(fmt.Sprintf("invalid persistentID:%v", persistentID))
+	}
+
+	var highID, lowID uint32
+	if length <= (PersistentIDSize / 2) {
+		highID = 0
+		v, err := strconv.ParseUint(persistentID, 16, 32)
+		if err != nil {
+			return nil, err
+		}
+		lowID = uint32(v)
+	} else {
+		highIndex := length - (PersistentIDSize / 2)
+		v, err := strconv.ParseUint(persistentID[:highIndex], 16, 32)
+		if err != nil {
+			return nil, err
+		}
+		highID = uint32(v)
+
+		v, err = strconv.ParseUint(persistentID[highIndex:], 16, 32)
+		if err != nil {
+			return nil, err
+		}
+		lowID = uint32(v)
+	}
+
+	if it.tracks == nil {
+		err := it.initTracks()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	v, err := it.tracks.GetProperty("ItemByPersistentID", highID, lowID)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := createTrack(it, v.ToIDispatch(), it.wg)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
 }
