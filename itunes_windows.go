@@ -119,6 +119,129 @@ func (it *itunes) initTracks() error {
 	return nil
 }
 
+func (it *itunes) callMethod(method string, args ...interface{}) error {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	_, err := it.app.CallMethod(method, args...)
+
+	return err
+}
+
+func (it *itunes) getProperty(property string, args ...interface{}) (*ole.VARIANT, error) {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	v, err := it.app.GetProperty(property, args...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (it *itunes) putProperty(property string, args ...interface{}) error {
+	it.wg.Add(1)
+	defer it.wg.Done()
+
+	_, err := it.app.PutProperty(property, args...)
+
+	return err
+}
+
+func (it *itunes) Play() error {
+	return it.callMethod("Play")
+}
+
+func (it *itunes) Stop() error {
+	return it.callMethod("Stop")
+}
+
+func (it *itunes) BackTrack() error {
+	return it.callMethod("BackTrack")
+}
+
+func (it *itunes) PreviousTrack() error {
+	return it.callMethod("PreviousTrack")
+}
+
+func (it *itunes) NextTrack() error {
+	return it.callMethod("NextTrack")
+}
+
+func (it *itunes) SetPlayerPosition(pos int) error {
+	return it.putProperty("PlayerPosition", pos)
+}
+
+func (it *itunes) PlayerPosition() (int, error) {
+	v, err := it.getProperty("PlayerPosition")
+	if err != nil {
+		return 0, err
+	}
+
+	return int(v.Val), nil
+}
+
+func (it *itunes) PlayerState() (PlayerState, error) {
+	v, err := it.getProperty("PlayerState")
+	if err != nil {
+		return PlayerState(0), err
+	}
+
+	return PlayerState(v.Val), nil
+}
+
+func (it *itunes) PlayPause() error {
+	return it.callMethod("PlayPause")
+}
+
+func (it *itunes) Pause() error {
+	return it.callMethod("Pause")
+}
+
+func (it *itunes) Resume() error {
+	return it.callMethod("Resume")
+}
+
+func (it *itunes) FastForward() error {
+	return it.callMethod("FastForward")
+}
+
+func (it *itunes) Rewind() error {
+	return it.callMethod("Rewind")
+}
+
+func (it *itunes) SetSoundVolume(volume int) error {
+	if volume < 0 || 100 < volume {
+		return errors.New("volume is out of range")
+	}
+
+	return it.putProperty("SoundVolume")
+}
+
+func (it *itunes) SoundVolume() (int, error) {
+	v, err := it.getProperty("SoundVolume")
+	if err != nil {
+		return 0, err
+	}
+
+	return int(v.Val), nil
+}
+
+func (it *itunes) SetMute(isMuted bool) error {
+	return it.putProperty("Mute", isMuted)
+}
+
+func (it *itunes) Mute() (bool, error) {
+	v, err := it.getProperty("Mute")
+	if err != nil {
+		return false, err
+	}
+
+	return v.Value().(bool), nil
+}
+
 func (it *itunes) GetTracks() (chan *track, error) {
 	it.wg.Add(1)
 	defer it.wg.Done()
