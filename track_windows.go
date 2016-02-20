@@ -20,8 +20,9 @@ type track struct {
 	parent    *sync.WaitGroup
 	closeChan chan bool
 
-	Name   string
+	Album  string
 	Artist string
+	Name   string
 }
 
 func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) {
@@ -46,7 +47,7 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 	lowID := uint32(v.Val)
 
 	properties := [...]string{
-		"Name", "Artist",
+		"Album", "Artist", "Name",
 	}
 	values := make([]string, len(properties))
 
@@ -69,8 +70,9 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 		parent:    parent,
 		closeChan: make(chan bool),
 
-		Name:   values[0],
+		Album:  values[0],
 		Artist: values[1],
+		Name:   values[2],
 	}
 
 	return track, nil
