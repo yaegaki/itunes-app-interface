@@ -217,7 +217,7 @@ func (it *itunes) SetSoundVolume(volume int) error {
 		return errors.New("volume is out of range")
 	}
 
-	return it.putProperty("SoundVolume")
+	return it.putProperty("SoundVolume", volume)
 }
 
 func (it *itunes) SoundVolume() (int, error) {
