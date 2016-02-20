@@ -15,27 +15,6 @@ type track struct {
 	Name   string
 }
 
-var playTrackScript = `
-tell application "iTunes"
-	set t to FindTrackByPersistentID("%v") of me
-	if t is not null then
-		play t
-	end if
-end tell
-`
-
-var getArtworksScript = `
-tell application "iTunes"
-    set t to FindTrackByName("%v") of me
-    if t is not null then
-        repeat with a in artworks of t
-            set f to format of a
-            P(f) of me
-        end repeat
-    end
-end tell
-`
-
 func createTrack(values []string) (*track, error) {
 	if len(values) == 0 {
 		return nil, errors.New("values is empty.")

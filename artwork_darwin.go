@@ -12,10 +12,6 @@ type artwork struct {
 	Format ArtworkFormat
 }
 
-var saveArtworkToFileScript = `
-SaveArtworkToFile("%v", %d, "%v")
-`
-
 // for compatibility
 func (_ *artwork) Close() {
 }
@@ -36,7 +32,8 @@ func (a *artwork) SaveToFile(directory, name string) (string, error) {
 		return "", err
 	}
 
-	o, err := execAS(fmt.Sprintf(saveArtworkToFileScript, a.track.persistentID, a.index, filepath))
+	o, err := execAS(fmt.Sprintf(`SaveArtworkToFile("%v", %d, "%v")`, a.track.persistentID, a.index, filepath))
+
 	if err != nil {
 		return "", err
 	}

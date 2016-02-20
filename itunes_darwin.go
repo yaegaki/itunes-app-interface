@@ -1,174 +1,13 @@
 package itunes
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/url"
-	"os/exec"
 	"strconv"
-	"strings"
 )
 
 type itunes struct {
-}
-
-var baseJScript = `
-var app = Application("iTunes");
-function p(/*...args*/) {
-	console.log("!"+Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
-}
-
-function logTrack(track) {
-	if (track != null) {
-		p(
-			track.persistentID(),
-			track.album(),
-			track.artist(),
-			track.name()
-		);
-	}
-}
-
-function findTrackById(id) {
-	return app.tracks.byId(id);
-}
-
-function findTrackByPersistentId(persistentId) {
-	var index = app.tracks.persistentID().indexOf(persistentId);
-	if (index < 0) {
-		return null;
-	}
-
-	return app.tracks[index];
-}
-`
-
-var baseAScript = `
-on P(o)
-	log "!" & o
-end
-
-on FindTrackByPersistentID(persistentID)
-    tell application "iTunes"
-        try
-            return some track whose persistent ID is persistentID
-        on error
-            return null
-        end try
-    end tell
-end
-
-on FindTrackByName(n)
-    tell application "iTunes"
-    	set l to search playlist 1 for n only songs
-    	set c to count of l
-    	if c is 0 then
-    		return null
-		else
-			return item 1 of l
-		end if
-    end tell
-end
-
-on SaveArtworkToFile(persistentID, index, path)
-    set fp to POSIX file path
-	tell application "iTunes"
-		set t to FindTrackByPersistentID(persistentID) of me
-		if t is not null then
-			set art to artworks index of t
-			set d to raw data of art
-			set f to open for access fp with write permission
-			set eof f to 0
-			write d to f
-			close access f
-		end
-	end tell
-end
-`
-
-var currentTrackScript = `
-logTrack(app.currentTrack());
-`
-
-var getTracksScript = `
-app.tracks().forEach(logTrack);
-`
-
-var findTrackByPersistentIdScript = `
-logTrack(findTrackByPersistentId("%v"))
-`
-
-func execScript(cmd *exec.Cmd, script string) (chan string, error) {
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
-	}
-	defer stdin.Close()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	scanner := bufio.NewScanner(stderr)
-	output := make(chan string)
-	go func() {
-		defer close(output)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line != "" {
-				output <- line
-			}
-		}
-	}()
-
-	_, err = io.WriteString(stdin, script)
-	if err != nil {
-		return nil, err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	return output, err
-}
-
-func validateResult(result string) ([]string, error) {
-	l := len(result)
-	if l != 0 && result[0] != "!"[0] {
-		return nil, errors.New(fmt.Sprintf("osascript error:%v", result))
-	}
-
-	if l != 0 {
-		result = result[1:]
-	}
-
-	s := strings.Split(result, ",")
-	for i, raw := range s {
-		raw, err := url.QueryUnescape(raw)
-		if err != nil {
-			return nil, err
-		}
-
-		s[i] = raw
-	}
-
-	return s, nil
-}
-
-func execAS(script string) (chan string, error) {
-	cmd := exec.Command("osascript")
-	return execScript(cmd, baseAScript+script)
-}
-
-func execJS(script string) (chan string, error) {
-	cmd := exec.Command("osascript", "-l", "JavaScript")
-	return execScript(cmd, baseJScript+script)
 }
 
 // for compatibility
@@ -191,17 +30,30 @@ func (_ *itunes) Close() {
 }
 
 func (it *itunes) CurrentTrack() (*track, error) {
-	o, err := execJS(currentTrackScript)
+	columns, err := getColumnsByJS(`logTrack(app.currentTrack());`)
 	if err != nil {
 		return nil, err
 	}
 
-	result := <-o
-	if len(result) == 0 {
-		return nil, errors.New("CurrentTrack is nil")
+	return createTrack(columns)
+}
+
+func (_ *itunes) TrackCount() (int, error) {
+	columns, err := getColumnsByJS("p(app.tracks.length);")
+	if err != nil {
+		return 0, err
 	}
 
-	columns, err := validateResult(result)
+	count, err := strconv.ParseInt(columns[0], 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
+}
+
+func (_ *itunes) GetTrack(index int) (*track, error) {
+	columns, err := getColumnsByJS(fmt.Sprintf("logTrack(app.tracks[%v]());", index))
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +62,7 @@ func (it *itunes) CurrentTrack() (*track, error) {
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	output, err := execJS(getTracksScript)
+	output, err := execJS(`app.tracks().forEach(logTrack);`)
 	if err != nil {
 		return nil, err
 	}
@@ -226,9 +78,12 @@ func (it *itunes) GetTracks() (chan *track, error) {
 			}
 
 			track, err := createTrack(columns)
-			if err == nil {
-				result <- track
+			if err != nil {
+				log.Println(err)
+				return
 			}
+
+			result <- track
 		}
 	}()
 
@@ -236,37 +91,21 @@ func (it *itunes) GetTracks() (chan *track, error) {
 }
 
 func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
-	o, err := execJS(fmt.Sprintf(findTrackByPersistentIdScript, persistentID))
+	columns, err := getColumnsByJS(fmt.Sprintf(`logTrack(findTrackByPersistentId("%v"))`, persistentID))
 	if err != nil {
 		return nil, err
 	}
 
-	result := <-o
-	if result == "" {
+	if len(columns) == 0 {
 		return nil, errors.New(fmt.Sprintf("not found track:%v", persistentID))
 	}
 
-	columns, err := validateResult(result)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := createTrack(columns)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
+	return createTrack(columns)
 }
 
 func callMethod(method string) error {
-	o, err := execJS(fmt.Sprintf("app.%v()", method))
+	_, err := getColumnsByJS(fmt.Sprintf("app.%v()", method))
 	if err != nil {
-		return err
-	}
-
-	result := <-o
-	if _, err = validateResult(result); err != nil {
 		return err
 	}
 
@@ -274,13 +113,7 @@ func callMethod(method string) error {
 }
 
 func getProperty(property string) (string, error) {
-	o, err := execJS(fmt.Sprintf("p(app.%v())", property))
-	if err != nil {
-		return "", err
-	}
-
-	result := <-o
-	columns, err := validateResult(result)
+	columns, err := getColumnsByJS(fmt.Sprintf("p(app.%v())", property))
 	if err != nil {
 		return "", err
 	}
@@ -293,13 +126,8 @@ func getProperty(property string) (string, error) {
 }
 
 func putProperty(property string, v interface{}) error {
-	o, err := execJS(fmt.Sprintf("app.%v = '%v'", property, v))
+	_, err := getColumnsByJS(fmt.Sprintf("app.%v = '%v'", property, v))
 	if err != nil {
-		return err
-	}
-
-	result := <-o
-	if _, err = validateResult(result); err != nil {
 		return err
 	}
 
