@@ -36,12 +36,11 @@ tell application "iTunes"
 end tell
 `
 
-func createTrack(line string) (*track, error) {
-	if line == "" {
-		return nil, errors.New("result is empty.")
+func createTrack(values []string) (*track, error) {
+	if len(values) == 0 {
+		return nil, errors.New("values is empty.")
 	}
 
-	values := decodeOutput(line)
 	count := len(values)
 
 	persistentID := values[0]
@@ -99,13 +98,13 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 		defer close(output)
 		index := 1
 		for line := range formats {
-			line, err = validateResult(line)
+			columns, err := validateResult(line)
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			f := strings.Split(line, " ")[0]
+			f := strings.Split(columns[0], " ")[0]
 			var format ArtworkFormat
 			switch f {
 			case JPEG.String():
@@ -115,7 +114,7 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 			case BMP.String():
 				format = BMP
 			default:
-				log.Printf("unknown format:%v", line)
+				log.Printf("unknown format:%v", f)
 				continue
 			}
 
