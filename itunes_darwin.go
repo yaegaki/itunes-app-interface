@@ -22,7 +22,12 @@ function p(/*...args*/) {
 
 function logTrack(track) {
 	if (track != null) {
-		p(track.persistentID(), track.name(), track.artist());
+		p(
+			track.persistentID(),
+			track.album(),
+			track.artist(),
+			track.name()
+		);
 	}
 }
 

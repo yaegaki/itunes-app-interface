@@ -9,8 +9,10 @@ import (
 
 type track struct {
 	persistentID string
-	Name         string
-	Artist       string
+
+	Album  string
+	Artist string
+	Name   string
 }
 
 var playTrackScript = `
@@ -44,20 +46,25 @@ func createTrack(line string) (*track, error) {
 
 	persistentID := values[0]
 	count = len(values)
-	var name, artist string
+	var album, artist, name string
 
 	switch {
 	case count > 1:
-		name = values[1]
+		album = values[1]
 		fallthrough
 	case count > 2:
 		artist = values[2]
+		fallthrough
+	case count > 3:
+		name = values[3]
 	}
 
 	track := &track{
 		persistentID: persistentID,
-		Name:         name,
-		Artist:       artist,
+
+		Album:  album,
+		Artist: artist,
+		Name:   name,
 	}
 
 	return track, nil
