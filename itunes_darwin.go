@@ -14,7 +14,7 @@ import (
 type itunes struct {
 }
 
-var baseJSScript = `
+var baseJScript = `
 var app = Application("iTunes");
 function p(/*...args*/) {
 	console.log("!"+Array.prototype.slice.call(arguments).map(encodeURIComponent).join(","));
@@ -29,7 +29,7 @@ function findTrackById(id) {
 }
 `
 
-var baseASScript = `
+var baseAScript = `
 on P(o)
 	log "!" & o
 end
@@ -132,12 +132,12 @@ func validateResult(result string) (string, error) {
 
 func execAS(script string) (chan string, error) {
 	cmd := exec.Command("osascript")
-	return execScript(cmd, baseASScript+script)
+	return execScript(cmd, baseAScript+script)
 }
 
 func execJS(script string) (chan string, error) {
 	cmd := exec.Command("osascript", "-l", "JavaScript")
-	return execScript(cmd, baseJSScript+script)
+	return execScript(cmd, baseJScript+script)
 }
 
 func decodeOutput(str string) []string {
