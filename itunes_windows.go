@@ -48,6 +48,7 @@ func CreateItunes() (*itunes, error) {
 
 	if err != nil {
 		handler.Close()
+		return nil, err
 	}
 
 	it := &itunes{
