@@ -1,50 +1,42 @@
 package itunes
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"sync"
 
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
+	"github.com/yaegaki/go-ole-handler"
 )
 
 type track struct {
-	itunes    *itunes
-	highID    uint32
-	lowID     uint32
-	handle    *ole.IDispatch
-	artworks  *ole.IDispatch
-	wg        *sync.WaitGroup
-	parent    *sync.WaitGroup
-	closeChan chan bool
+	handler  *olehandler.OleHandler
+	artworks *olehandler.OleHandler
+
+	itunes *itunes
+	highID uint32
+	lowID  uint32
 
 	Album  string
 	Artist string
 	Name   string
 }
 
-func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*track, error) {
-	if handle == nil {
-		return nil, errors.New("handle is nil")
-	}
-
-	parent.Add(1)
-
-	v, err := it.app.GetProperty("ITObjectPersistentIDHigh", handle)
+func createTrack(it *itunes, handler *olehandler.OleHandler) (*track, error) {
+	v, err := it.handler.GetProperty("ITObjectPersistentIDHigh", handler.Handle)
 	if err != nil {
-		parent.Done()
 		return nil, err
 	}
 	highID := uint32(v.Val)
 
-	v, err = it.app.GetProperty("ITObjectPersistentIDLow", handle)
+	v, err = it.handler.GetProperty("ITObjectPersistentIDLow", handler.Handle)
 	if err != nil {
-		parent.Done()
 		return nil, err
 	}
 	lowID := uint32(v.Val)
+
+	artworks, err := handler.GetOleHandler("Artwork")
+	if err != nil {
+		return nil, err
+	}
 
 	properties := [...]string{
 		"Album", "Artist", "Name",
@@ -52,9 +44,8 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 	values := make([]string, len(properties))
 
 	for i, property := range properties {
-		v, err := oleutil.GetProperty(handle, property)
+		v, err := handler.GetProperty(property)
 		if err != nil {
-			parent.Done()
 			return nil, err
 		}
 
@@ -62,13 +53,12 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 	}
 
 	track := &track{
-		itunes:    it,
-		highID:    highID,
-		lowID:     lowID,
-		handle:    handle,
-		wg:        new(sync.WaitGroup),
-		parent:    parent,
-		closeChan: make(chan bool),
+		handler:  handler,
+		artworks: artworks,
+
+		itunes: it,
+		highID: highID,
+		lowID:  lowID,
 
 		Album:  values[0],
 		Artist: values[1],
@@ -79,66 +69,38 @@ func createTrack(it *itunes, handle *ole.IDispatch, parent *sync.WaitGroup) (*tr
 }
 
 func (t *track) Close() {
-	close(t.closeChan)
-	t.wg.Wait()
-
-	t.handle.Release()
-	if t.artworks != nil {
-		t.artworks.Release()
-	}
-
-	t.parent.Done()
+	t.handler.Close()
 }
 
 func (t *track) Play() error {
-	t.wg.Add(1)
-	defer t.wg.Done()
-	_, err := t.handle.CallMethod("Play")
-	return err
+	return t.handler.CallMethod("Play")
 }
 
 func (t *track) GetArtworks() (chan *artwork, error) {
-	t.wg.Add(1)
-	defer t.wg.Done()
-
-	if t.artworks == nil {
-		v, err := t.handle.GetProperty("Artwork")
-		if err != nil {
-			return nil, err
-		}
-		t.artworks = v.ToIDispatch()
-	}
-
-	v, err := t.artworks.GetProperty("Count")
+	count, err := t.artworks.GetIntProperty("Count")
 	if err != nil {
 		return nil, err
 	}
 
-	count := int(v.Val)
-
 	output := make(chan *artwork)
 	go func() {
-		t.wg.Add(1)
-		defer t.wg.Done()
 		defer close(output)
-
 		for i := 1; i <= count; i++ {
-			v, err = t.artworks.GetProperty("Item", i)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			artwork, err := createArtwork(v.ToIDispatch(), t.parent)
+			var a *artwork
+			err = t.artworks.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
+				a, err = createArtwork(t, handler)
+				return err
+			}, i)
+
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
 			select {
-			case <-t.closeChan:
-				artwork.Close()
-				return
-			case output <- artwork:
+			case <-t.handler.Closed():
+				a.Close()
+			case output <- a:
 			}
 		}
 	}()
