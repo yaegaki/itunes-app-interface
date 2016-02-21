@@ -202,3 +202,43 @@ func testPreviousTrack(t *testing.T, it *itunes, track *track) {
 		t.Errorf("invalid PreviousTrack.")
 	}
 }
+
+func TestFindTrackByPersistentID(t *testing.T) {
+	err := Init()
+	if err != nil {
+		t.Errorf("Init failed.\n%v", err)
+	}
+	defer UnInit()
+
+	it, err := CreateItunes()
+	if err != nil {
+		t.Errorf("CreateItunes failed.\n%v", err)
+	}
+	defer it.Close()
+
+	err = it.Play()
+	if err != nil {
+		t.Errorf("Play failed.\n%v", err)
+	}
+
+	ct, err := it.CurrentTrack()
+	if err != nil {
+		t.Errorf("CurrentTrack failed.\n%v", err)
+	}
+	defer ct.Close()
+
+	ft, err := it.FindTrackByPersistentID(ct.PersistentID())
+	if err != nil {
+		t.Errorf("FindTrackByPersistentID failed.\n%v", err)
+	}
+	defer ft.Close()
+
+	if ct.PersistentID() != ft.PersistentID() {
+		t.Errorf("Different PersistentID")
+	}
+
+	it.Stop()
+	if err != nil {
+		t.Errorf("Stop failed.\n%v", err)
+	}
+}
