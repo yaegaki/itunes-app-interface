@@ -16,7 +16,7 @@ func TestItunes(t *testing.T) {
 	defer it.Close()
 
 	// test sound volume
-	for i := 0; i <= 100; i++ {
+	for _, i := range []int{0, 30, 60, 90, 100} {
 		err = it.SetSoundVolume(i)
 		if err != nil {
 			t.Errorf("SetSoundVolume failed.\n%v", err)
