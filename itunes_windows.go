@@ -3,9 +3,8 @@ package itunes
 import (
 	"errors"
 	"fmt"
-	"strconv"
-
 	"log"
+	"strconv"
 
 	"github.com/go-ole/go-ole"
 	"github.com/yaegaki/go-ole-handler"
@@ -29,7 +28,7 @@ func UnInit() {
 func CreateItunes() (*itunes, error) {
 	handler, err := olehandler.CreateRootOleHandler("iTunes.Application")
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
 	var libraryPlaylist, tracks *olehandler.OleHandler
