@@ -3,7 +3,6 @@ package itunes
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/go-ole/go-ole"
@@ -13,8 +12,9 @@ import (
 type itunes struct {
 	handler *olehandler.OleHandler
 
-	libraryPlaylist *olehandler.OleHandler
-	tracks          *olehandler.OleHandler
+	libraryPlaylist *Playlist
+	librarySource   *olehandler.OleHandler
+	playlists       *olehandler.OleHandler
 }
 
 func Init() error {
@@ -31,14 +31,19 @@ func CreateItunes() (*itunes, error) {
 		return nil, err
 	}
 
-	var libraryPlaylist, tracks *olehandler.OleHandler
+	var librarySource, playlists *olehandler.OleHandler
+	var libraryPlaylist *Playlist
 	err = func() error {
-		libraryPlaylist, err = handler.GetOleHandler("LibraryPlaylist")
+		librarySource, err = handler.GetOleHandler("LibrarySource")
 		if err != nil {
 			return err
 		}
 
-		tracks, err = libraryPlaylist.GetOleHandler("Tracks")
+		if err != nil {
+			return err
+		}
+
+		playlists, err = librarySource.GetOleHandler("Playlists")
 		if err != nil {
 			return err
 		}
@@ -52,10 +57,23 @@ func CreateItunes() (*itunes, error) {
 	}
 
 	it := &itunes{
-		handler:         handler,
-		libraryPlaylist: libraryPlaylist,
-		tracks:          tracks,
+		handler:       handler,
+		librarySource: librarySource,
+		playlists:     playlists,
 	}
+
+	err = handler.GetOleHandlerWithCallback("LibraryPlaylist", func(handler *olehandler.OleHandler) error {
+		libraryPlaylist, err = createPlaylist(it, handler)
+		return err
+	})
+
+	if err != nil {
+		it.Close()
+		return nil, err
+	}
+
+	it.libraryPlaylist = libraryPlaylist
+
 	return it, nil
 }
 
@@ -73,56 +91,23 @@ func (it *itunes) CurrentTrack() (t *track, err error) {
 }
 
 func (it *itunes) TrackCount() (int, error) {
-	return it.tracks.GetIntProperty("Count")
+	return it.libraryPlaylist.TrackCount()
 }
 
 func (it *itunes) GetTrack(index int) (t *track, err error) {
-	err = it.tracks.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
-		t, err = createTrack(it, handler)
-		return err
-	}, index+1)
-
-	return t, err
+	return it.libraryPlaylist.GetTrack(index)
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	count, err := it.TrackCount()
-	if err != nil {
-		return nil, err
-	}
-
-	output := make(chan *track)
-	go func() {
-		defer close(output)
-		for i := 1; i <= count; i++ {
-			var t *track
-			err = it.tracks.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
-				t, err = createTrack(it, handler)
-				return err
-			}, i)
-
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			select {
-			case <-it.handler.Closed():
-				t.Close()
-			case output <- t:
-			}
-		}
-	}()
-
-	return output, nil
+	return it.libraryPlaylist.GetTracks()
 }
 
 const PersistentIDSize = 16
 
-func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
+func (it *itunes) findItemByPersistentID(collection *olehandler.OleHandler, persistentID string, fn func(*olehandler.OleHandler) error) error {
 	length := len(persistentID)
 	if length > PersistentIDSize || length < 0 {
-		return nil, errors.New(fmt.Sprintf("invalid persistentID:%v", persistentID))
+		return errors.New(fmt.Sprintf("invalid persistentID:%v", persistentID))
 	}
 
 	var highID, lowID uint32
@@ -130,38 +115,76 @@ func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
 		highID = 0
 		v, err := strconv.ParseUint(persistentID, 16, 32)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		lowID = uint32(v)
 	} else {
 		highIndex := length - (PersistentIDSize / 2)
 		v, err := strconv.ParseUint(persistentID[:highIndex], 16, 32)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		highID = uint32(v)
 
 		v, err = strconv.ParseUint(persistentID[highIndex:], 16, 32)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		lowID = uint32(v)
 	}
 
-	var (
-		t   *track
-		err error
-	)
+	return collection.GetOleHandlerWithCallbackAndArgs("ItemByPersistentID", func(handler *olehandler.OleHandler) error {
+		return fn(handler)
+	}, highID, lowID)
+}
 
-	err = it.tracks.GetOleHandlerWithCallbackAndArgs("ItemByPersistentID", func(handler *olehandler.OleHandler) error {
+func (it *itunes) FindTrackByPersistentID(persistentID string) (t *track, err error) {
+	err = it.findItemByPersistentID(it.libraryPlaylist.tracks, persistentID, func(handler *olehandler.OleHandler) error {
 		t, err = createTrack(it, handler)
 		return err
-	}, highID, lowID)
-	if err != nil {
-		return nil, err
-	}
+	})
 
-	return t, nil
+	return t, err
+}
+
+func (it *itunes) CurrentPlaylist() (p *Playlist, err error) {
+	err = it.handler.GetOleHandlerWithCallback("CurrentPlaylist", func(handler *olehandler.OleHandler) error {
+		p, err = createPlaylist(it, handler)
+		return err
+	})
+
+	return p, err
+}
+
+func (it *itunes) PlaylistCount() (int, error) {
+	return it.playlists.GetIntProperty("Count")
+}
+
+func (it *itunes) GetPlaylist(index int) (p *Playlist, err error) {
+	err = it.playlists.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
+		p, err = createPlaylist(it, handler)
+		return err
+	}, index+1)
+
+	return p, err
+}
+
+func (it *itunes) FindPlaylistByPersistentID(persistentID string) (p *Playlist, err error) {
+	err = it.findItemByPersistentID(it.playlists, persistentID, func(handler *olehandler.OleHandler) error {
+		p, err = createPlaylist(it, handler)
+		return err
+	})
+
+	return p, err
+}
+
+func (it *itunes) CreatePlaylist(playlistName string) (p *Playlist, err error) {
+	err = it.handler.GetOleHandlerWithCallbackAndArgsByMethod("CreatePlaylist", func(handler *olehandler.OleHandler) error {
+		p, err = createPlaylist(it, handler)
+		return err
+	}, playlistName)
+
+	return p, err
 }
 
 func (it *itunes) Play() error {
