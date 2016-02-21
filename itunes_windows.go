@@ -12,7 +12,7 @@ import (
 type itunes struct {
 	handler *olehandler.OleHandler
 
-	libraryPlaylist *Playlist
+	libraryPlaylist *playlist
 	librarySource   *olehandler.OleHandler
 	playlists       *olehandler.OleHandler
 }
@@ -32,7 +32,7 @@ func CreateItunes() (*itunes, error) {
 	}
 
 	var librarySource, playlists *olehandler.OleHandler
-	var libraryPlaylist *Playlist
+	var libraryPlaylist *playlist
 	err = func() error {
 		librarySource, err = handler.GetOleHandler("LibrarySource")
 		if err != nil {
@@ -147,7 +147,7 @@ func (it *itunes) FindTrackByPersistentID(persistentID string) (t *track, err er
 	return t, err
 }
 
-func (it *itunes) CurrentPlaylist() (p *Playlist, err error) {
+func (it *itunes) CurrentPlaylist() (p *playlist, err error) {
 	err = it.handler.GetOleHandlerWithCallback("CurrentPlaylist", func(handler *olehandler.OleHandler) error {
 		p, err = createPlaylist(it, handler)
 		return err
@@ -160,7 +160,7 @@ func (it *itunes) PlaylistCount() (int, error) {
 	return it.playlists.GetIntProperty("Count")
 }
 
-func (it *itunes) GetPlaylist(index int) (p *Playlist, err error) {
+func (it *itunes) GetPlaylist(index int) (p *playlist, err error) {
 	err = it.playlists.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
 		p, err = createPlaylist(it, handler)
 		return err
@@ -169,7 +169,7 @@ func (it *itunes) GetPlaylist(index int) (p *Playlist, err error) {
 	return p, err
 }
 
-func (it *itunes) FindPlaylistByPersistentID(persistentID string) (p *Playlist, err error) {
+func (it *itunes) FindPlaylistByPersistentID(persistentID string) (p *playlist, err error) {
 	err = it.findItemByPersistentID(it.playlists, persistentID, func(handler *olehandler.OleHandler) error {
 		p, err = createPlaylist(it, handler)
 		return err
@@ -178,7 +178,7 @@ func (it *itunes) FindPlaylistByPersistentID(persistentID string) (p *Playlist, 
 	return p, err
 }
 
-func (it *itunes) CreatePlaylist(playlistName string) (p *Playlist, err error) {
+func (it *itunes) CreatePlaylist(playlistName string) (p *playlist, err error) {
 	err = it.handler.GetOleHandlerWithCallbackAndArgsByMethod("CreatePlaylist", func(handler *olehandler.OleHandler) error {
 		p, err = createPlaylist(it, handler)
 		return err

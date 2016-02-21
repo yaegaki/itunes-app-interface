@@ -7,7 +7,7 @@ import (
 	"github.com/yaegaki/go-ole-handler"
 )
 
-type Playlist struct {
+type playlist struct {
 	handler *olehandler.OleHandler
 
 	itunes *itunes
@@ -17,7 +17,7 @@ type Playlist struct {
 	Name   string
 }
 
-func createPlaylist(it *itunes, handler *olehandler.OleHandler) (*Playlist, error) {
+func createPlaylist(it *itunes, handler *olehandler.OleHandler) (*playlist, error) {
 	v, err := it.handler.GetProperty("ITObjectPersistentIDHigh", handler.Handle)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func createPlaylist(it *itunes, handler *olehandler.OleHandler) (*Playlist, erro
 		return nil, err
 	}
 
-	p := &Playlist{
+	p := &playlist{
 		handler: handler,
 
 		itunes: it,
@@ -52,15 +52,15 @@ func createPlaylist(it *itunes, handler *olehandler.OleHandler) (*Playlist, erro
 	return p, nil
 }
 
-func (p *Playlist) Close() {
+func (p *playlist) Close() {
 	p.handler.Close()
 }
 
-func (p *Playlist) TrackCount() (int, error) {
+func (p *playlist) TrackCount() (int, error) {
 	return p.tracks.GetIntProperty("Count")
 }
 
-func (p *Playlist) GetTrack(index int) (t *track, err error) {
+func (p *playlist) GetTrack(index int) (t *track, err error) {
 	err = p.tracks.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
 		t, err = createTrack(p.itunes, handler)
 		return err
@@ -68,7 +68,7 @@ func (p *Playlist) GetTrack(index int) (t *track, err error) {
 
 	return t, err
 }
-func (p *Playlist) GetTracks() (chan *track, error) {
+func (p *playlist) GetTracks() (chan *track, error) {
 	count, err := p.TrackCount()
 	if err != nil {
 		return nil, err
@@ -100,22 +100,22 @@ func (p *Playlist) GetTracks() (chan *track, error) {
 	return output, nil
 }
 
-func (p *Playlist) PersistentID() string {
+func (p *playlist) PersistentID() string {
 	return fmt.Sprintf("%x%x", p.highID, p.lowID)
 }
 
-func (p *Playlist) PlayFirstTrack() error {
+func (p *playlist) PlayFirstTrack() error {
 	return p.handler.CallMethod("PlayFirstTrack")
 }
 
-func (p *Playlist) SetShuffle(isShuffle bool) error {
+func (p *playlist) SetShuffle(isShuffle bool) error {
 	return p.handler.PutProperty("Shuffle", isShuffle)
 }
-func (p *Playlist) Shuffle() (bool, error) {
+func (p *playlist) Shuffle() (bool, error) {
 	return p.handler.GetBoolProperty("Shuffle")
 }
 
-func (p *Playlist) AddTrack(t *track) (result *track, err error) {
+func (p *playlist) AddTrack(t *track) (result *track, err error) {
 	err = p.handler.GetOleHandlerWithCallbackAndArgsByMethod("AddTrack", func(handler *olehandler.OleHandler) error {
 		result, err = createTrack(p.itunes, handler)
 		return err
@@ -124,6 +124,6 @@ func (p *Playlist) AddTrack(t *track) (result *track, err error) {
 	return result, err
 }
 
-func (p *Playlist) Delete() error {
+func (p *playlist) Delete() error {
 	return p.handler.CallMethod("Delete")
 }
