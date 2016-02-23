@@ -61,7 +61,7 @@ func (_ *itunes) GetTrack(index int) (*track, error) {
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	p, err := it.CurrentPlaylist()
+	p, err := it.GetPlaylist(0)
 	if err != nil {
 		return nil, err
 	}
