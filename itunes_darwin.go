@@ -3,7 +3,6 @@ package itunes
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -62,35 +61,15 @@ func (_ *itunes) GetTrack(index int) (*track, error) {
 }
 
 func (it *itunes) GetTracks() (chan *track, error) {
-	output, err := execJS(`app.tracks().forEach(logTrack);`)
+	p, err := it.CurrentPlaylist()
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(chan *track)
-	go func() {
-		defer close(result)
-		for line := range output {
-			columns, err := validateResult(line)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			track, err := createTrack(columns)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			result <- track
-		}
-	}()
-
-	return result, nil
+	return p.GetTracks()
 }
 
-func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
+func findTrackByPersistentID(persistentID string) (*track, error) {
 	columns, err := getColumnsByJS(fmt.Sprintf(`logTrack(findTrackByPersistentId("%v"))`, persistentID))
 	if err != nil {
 		return nil, err
@@ -101,6 +80,68 @@ func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
 	}
 
 	return createTrack(columns)
+}
+
+func (it *itunes) FindTrackByPersistentID(persistentID string) (*track, error) {
+	return findTrackByPersistentID(persistentID)
+}
+
+func (_ *itunes) CurrentPlaylist() (p *playlist, err error) {
+	columns, err := getColumnsByJS(`logPlaylist(app.currentPlaylist());`)
+	if err != nil {
+		return nil, err
+	}
+
+	return createPlaylist(columns)
+}
+
+func (_ *itunes) PlaylistCount() (int, error) {
+	columns, err := getColumnsByJS(`p(app.playlists.length);`)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := strconv.ParseInt(columns[0], 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
+}
+
+func (_ *itunes) GetPlaylist(index int) (*playlist, error) {
+	columns, err := getColumnsByJS(fmt.Sprintf(`logPlaylist(app.playlists[%d]())`, index))
+	if err != nil {
+		return nil, err
+	}
+
+	return createPlaylist(columns)
+}
+
+func findPlaylistByPersistentID(persistentID string) (*playlist, error) {
+	columns, err := getColumnsByJS(fmt.Sprintf(`logPlaylist(findPlaylistByPersistentId("%v"))`, persistentID))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(columns) == 0 {
+		return nil, errors.New(fmt.Sprintf("not found playlist:%v", persistentID))
+	}
+
+	return createPlaylist(columns)
+}
+
+func (_ *itunes) FindPlaylistByPersistentID(persistentID string) (*playlist, error) {
+	return findPlaylistByPersistentID(persistentID)
+}
+
+func (_ *itunes) CreatePlaylist(name string) (*playlist, error) {
+	columns, err := getColumnsByJS(fmt.Sprintf(`logPlaylist(createPlaylist("%v"));`, name))
+	if err != nil {
+		return nil, err
+	}
+
+	return createPlaylist(columns)
 }
 
 func callMethod(method string) error {

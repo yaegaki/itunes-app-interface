@@ -27,6 +27,15 @@ function logTrack(track) {
 	}
 }
 
+function logPlaylist(playlist) {
+	if (playlist != null) {
+		p(
+			playlist.persistentID(),
+			playlist.name()
+		);
+	}
+}
+
 function findTrackById(id) {
 	return app.tracks.byId(id);
 }
@@ -38,6 +47,19 @@ function findTrackByPersistentId(persistentId) {
 	}
 
 	return app.tracks[index];
+}
+
+function findPlaylistByPersistentId(persistentId) {
+	var index = app.playlists.persistentID().indexOf(persistentId);
+	if (index < 0) {
+		return null;
+	}
+
+	return app.playlists[index];
+}
+
+function createPlaylist(name) {
+	return app.Playlist({name: name}).make();
 }
 `
 
@@ -54,6 +76,26 @@ on FindTrackByPersistentID(persistentID)
             return null
         end try
     end tell
+end
+
+on FindPlaylistByPersistentID(persistentID)
+    tell application "iTunes"
+        try
+            return some playlist whose persistent ID is persistentID
+        on error
+            return null
+        end try
+    end tell
+end
+
+on AddTrackToPlaylist(tPID, pPID)
+    set _p to my FindPlaylistByPersistentID(pPID)
+    set _t to my FindTrackByPersistentID(tPID)
+    set t to (duplicate _t to _p)
+    tell application "iTunes"
+    	set pid to persistent ID of t
+    end
+    my P(pid)
 end
 
 on FindTrackByName(n)
