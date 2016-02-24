@@ -98,7 +98,7 @@ func (t *Track) GetArtworks() (chan *Artwork, error) {
 			}
 
 			output <- &Artwork{
-				Track:  t,
+				track:  t,
 				index:  index,
 				format: format,
 			}

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-type itunes struct {
+type Itunes struct {
 }
 
 // for compatibility
@@ -19,16 +19,16 @@ func UnInit() {
 	return
 }
 
-func CreateItunes() (*itunes, error) {
-	return &itunes{}, nil
+func CreateItunes() (*Itunes, error) {
+	return &Itunes{}, nil
 }
 
 // for compatibility
-func (_ *itunes) Close() {
+func (_ *Itunes) Close() {
 	return
 }
 
-func (it *itunes) CurrentTrack() (*Track, error) {
+func (it *Itunes) CurrentTrack() (*Track, error) {
 	columns, err := getColumnsByJS(`logTrack(app.currentTrack());`)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (it *itunes) CurrentTrack() (*Track, error) {
 	return createTrack(columns)
 }
 
-func (_ *itunes) TrackCount() (int, error) {
+func (_ *Itunes) TrackCount() (int, error) {
 	columns, err := getColumnsByJS("p(app.tracks.length);")
 	if err != nil {
 		return 0, err
@@ -51,7 +51,7 @@ func (_ *itunes) TrackCount() (int, error) {
 	return int(count), nil
 }
 
-func (_ *itunes) GetTrack(index int) (*Track, error) {
+func (_ *Itunes) GetTrack(index int) (*Track, error) {
 	columns, err := getColumnsByJS(fmt.Sprintf("logTrack(app.tracks[%v]());", index))
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (_ *itunes) GetTrack(index int) (*Track, error) {
 	return createTrack(columns)
 }
 
-func (it *itunes) GetTracks() (chan *Track, error) {
+func (it *Itunes) GetTracks() (chan *Track, error) {
 	p, err := it.GetPlaylist(0)
 	if err != nil {
 		return nil, err
@@ -82,11 +82,11 @@ func findTrackByPersistentID(persistentID string) (*Track, error) {
 	return createTrack(columns)
 }
 
-func (it *itunes) FindTrackByPersistentID(persistentID string) (*Track, error) {
+func (it *Itunes) FindTrackByPersistentID(persistentID string) (*Track, error) {
 	return findTrackByPersistentID(persistentID)
 }
 
-func (_ *itunes) CurrentPlaylist() (p *Playlist, err error) {
+func (_ *Itunes) CurrentPlaylist() (p *Playlist, err error) {
 	columns, err := getColumnsByJS(`logPlaylist(app.currentPlaylist());`)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (_ *itunes) CurrentPlaylist() (p *Playlist, err error) {
 	return createPlaylist(columns)
 }
 
-func (_ *itunes) PlaylistCount() (int, error) {
+func (_ *Itunes) PlaylistCount() (int, error) {
 	columns, err := getColumnsByJS(`p(app.playlists.length);`)
 	if err != nil {
 		return 0, err
@@ -109,7 +109,7 @@ func (_ *itunes) PlaylistCount() (int, error) {
 	return int(count), nil
 }
 
-func (_ *itunes) GetPlaylist(index int) (*Playlist, error) {
+func (_ *Itunes) GetPlaylist(index int) (*Playlist, error) {
 	columns, err := getColumnsByJS(fmt.Sprintf(`logPlaylist(app.playlists[%d]())`, index))
 	if err != nil {
 		return nil, err
@@ -131,11 +131,11 @@ func findPlaylistByPersistentID(persistentID string) (*Playlist, error) {
 	return createPlaylist(columns)
 }
 
-func (_ *itunes) FindPlaylistByPersistentID(persistentID string) (*Playlist, error) {
+func (_ *Itunes) FindPlaylistByPersistentID(persistentID string) (*Playlist, error) {
 	return findPlaylistByPersistentID(persistentID)
 }
 
-func (_ *itunes) CreatePlaylist(name string) (*Playlist, error) {
+func (_ *Itunes) CreatePlaylist(name string) (*Playlist, error) {
 	columns, err := getColumnsByJS(fmt.Sprintf(`logPlaylist(createPlaylist("%v"));`, name))
 	if err != nil {
 		return nil, err
@@ -175,31 +175,31 @@ func putProperty(property string, v interface{}) error {
 	return nil
 }
 
-func (it *itunes) Play() error {
+func (it *Itunes) Play() error {
 	return callMethod("play")
 }
 
-func (it *itunes) Stop() error {
+func (it *Itunes) Stop() error {
 	return callMethod("stop")
 }
 
-func (it *itunes) BackTrack() error {
+func (it *Itunes) BackTrack() error {
 	return callMethod("backTrack")
 }
 
-func (it *itunes) PreviousTrack() error {
+func (it *Itunes) PreviousTrack() error {
 	return callMethod("previousTrack")
 }
 
-func (it *itunes) NextTrack() error {
+func (it *Itunes) NextTrack() error {
 	return callMethod("nextTrack")
 }
 
-func (it *itunes) SetPlayerPosition(pos int) error {
+func (it *Itunes) SetPlayerPosition(pos int) error {
 	return putProperty("playerPosition", pos)
 }
 
-func (it *itunes) PlayerPosition() (int, error) {
+func (it *Itunes) PlayerPosition() (int, error) {
 	v, err := getProperty("playerPosition")
 	if err != nil {
 		return 0, err
@@ -217,7 +217,7 @@ func (it *itunes) PlayerPosition() (int, error) {
 	return int(result), nil
 }
 
-func (it *itunes) PlayerState() (PlayerState, error) {
+func (it *Itunes) PlayerState() (PlayerState, error) {
 	v, err := getProperty("playerState")
 	if err != nil {
 		return PlayerState(0), err
@@ -240,27 +240,27 @@ func (it *itunes) PlayerState() (PlayerState, error) {
 	return ps, nil
 }
 
-func (it *itunes) PlayPause() error {
+func (it *Itunes) PlayPause() error {
 	return callMethod("playpause")
 }
 
-func (it *itunes) Pause() error {
+func (it *Itunes) Pause() error {
 	return callMethod("pause")
 }
 
-func (it *itunes) Resume() error {
+func (it *Itunes) Resume() error {
 	return callMethod("resume")
 }
 
-func (it *itunes) FastForward() error {
+func (it *Itunes) FastForward() error {
 	return callMethod("fastForward")
 }
 
-func (it *itunes) Rewind() error {
+func (it *Itunes) Rewind() error {
 	return callMethod("rewind")
 }
 
-func (it *itunes) SetSoundVolume(volume int) error {
+func (it *Itunes) SetSoundVolume(volume int) error {
 	if volume < 0 || 100 < volume {
 		return errors.New("volume is out of range")
 	}
@@ -268,7 +268,7 @@ func (it *itunes) SetSoundVolume(volume int) error {
 	return putProperty("soundVolume", volume)
 }
 
-func (it *itunes) SoundVolume() (int, error) {
+func (it *Itunes) SoundVolume() (int, error) {
 	v, err := getProperty("soundVolume")
 	if err != nil {
 		return 0, err
@@ -281,11 +281,11 @@ func (it *itunes) SoundVolume() (int, error) {
 	return int(result), nil
 }
 
-func (it *itunes) SetMute(isMuted bool) error {
+func (it *Itunes) SetMute(isMuted bool) error {
 	return putProperty("mute", isMuted)
 }
 
-func (it *itunes) Mute() (bool, error) {
+func (it *Itunes) Mute() (bool, error) {
 	v, err := getProperty("mute")
 	if err != nil {
 		return false, err

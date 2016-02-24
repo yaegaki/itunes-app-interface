@@ -28,7 +28,7 @@ func (a *Artwork) SaveToFile(directory, name string) (string, error) {
 		return "", err
 	}
 
-	filepath, err := filepath.Abs(fmt.Sprintf(`%v/%v%v`, directory, name, a.Format.Ext()))
+	filepath, err := filepath.Abs(fmt.Sprintf(`%v/%v%v`, directory, name, a.Format().Ext()))
 	if err != nil {
 		return "", err
 	}
