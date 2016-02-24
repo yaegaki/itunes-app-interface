@@ -7,20 +7,20 @@ import (
 	"github.com/yaegaki/go-ole-handler"
 )
 
-type track struct {
+type Track struct {
 	handler  *olehandler.OleHandler
 	artworks *olehandler.OleHandler
 
-	itunes *itunes
+	itunes *Itunes
 	highID uint32
 	lowID  uint32
 
-	Album  string
-	Artist string
-	Name   string
+	album  string
+	artist string
+	name   string
 }
 
-func createTrack(it *itunes, handler *olehandler.OleHandler) (*track, error) {
+func createTrack(it *Itunes, handler *olehandler.OleHandler) (*Track, error) {
 	v, err := it.handler.GetProperty("ITObjectPersistentIDHigh", handler.Handle)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func createTrack(it *itunes, handler *olehandler.OleHandler) (*track, error) {
 		values[i] = v.ToString()
 	}
 
-	track := &track{
+	track := &Track{
 		handler:  handler,
 		artworks: artworks,
 
@@ -60,33 +60,33 @@ func createTrack(it *itunes, handler *olehandler.OleHandler) (*track, error) {
 		highID: highID,
 		lowID:  lowID,
 
-		Album:  values[0],
-		Artist: values[1],
-		Name:   values[2],
+		album:  values[0],
+		artist: values[1],
+		name:   values[2],
 	}
 
 	return track, nil
 }
 
-func (t *track) Close() {
+func (t *Track) Close() {
 	t.handler.Close()
 }
 
-func (t *track) Play() error {
+func (t *Track) Play() error {
 	return t.handler.CallMethod("Play")
 }
 
-func (t *track) GetArtworks() (chan *artwork, error) {
+func (t *Track) GetArtworks() (chan *Artwork, error) {
 	count, err := t.artworks.GetIntProperty("Count")
 	if err != nil {
 		return nil, err
 	}
 
-	output := make(chan *artwork)
+	output := make(chan *Artwork)
 	go func() {
 		defer close(output)
 		for i := 1; i <= count; i++ {
-			var a *artwork
+			var a *Artwork
 			err = t.artworks.GetOleHandlerWithCallbackAndArgs("Item", func(handler *olehandler.OleHandler) error {
 				a, err = createArtwork(t, handler)
 				return err
@@ -108,6 +108,6 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 	return output, nil
 }
 
-func (t *track) PersistentID() string {
+func (t *Track) PersistentID() string {
 	return fmt.Sprintf("%x%x", t.highID, t.lowID)
 }

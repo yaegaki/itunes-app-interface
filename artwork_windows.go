@@ -8,32 +8,32 @@ import (
 	"github.com/yaegaki/go-ole-handler"
 )
 
-type artwork struct {
+type Artwork struct {
 	handler *olehandler.OleHandler
 
-	Format ArtworkFormat
+	format ArtworkFormat
 }
 
-func (a *artwork) Close() {
+func (a *Artwork) Close() {
 	a.handler.Close()
 }
 
-func createArtwork(t *track, handler *olehandler.OleHandler) (*artwork, error) {
+func createArtwork(t *Track, handler *olehandler.OleHandler) (*Artwork, error) {
 	v, err := handler.GetIntProperty("Format")
 	if err != nil {
 		return nil, err
 	}
 
-	artwork := &artwork{
+	artwork := &Artwork{
 		handler: handler,
 
-		Format: ArtworkFormat(v),
+		format: ArtworkFormat(v),
 	}
 
 	return artwork, nil
 }
 
-func (a *artwork) SaveToFile(directory, name string) (string, error) {
+func (a *Artwork) SaveToFile(directory, name string) (string, error) {
 	directory, err := filepath.Abs(directory)
 	if err != nil {
 		return "", err
@@ -44,7 +44,7 @@ func (a *artwork) SaveToFile(directory, name string) (string, error) {
 		return "", err
 	}
 
-	filepath, err := filepath.Abs(fmt.Sprintf(`%v\%v%v`, directory, name, a.Format.Ext()))
+	filepath, err := filepath.Abs(fmt.Sprintf(`%v\%v%v`, directory, name, a.format.Ext()))
 	if err != nil {
 		return "", err
 	}

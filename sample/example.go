@@ -28,7 +28,7 @@ func Test() error {
 	}
 
 	for track := range output {
-		log.Printf("name:%v artist:%v", track.Name, track.Artist)
+		log.Printf("name:%v artist:%v", track.Name(), track.Artist())
 		track.Close()
 	}
 

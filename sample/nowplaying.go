@@ -29,7 +29,7 @@ func Test() error {
 	}
 	defer t.Close()
 
-	log.Printf("NowPlaying:%v %v", t.Name, t.Artist)
+	log.Printf("NowPlaying:%v %v", t.Name(), t.Artist())
 
 	artworks, err := t.GetArtworks()
 	if err != nil {

@@ -6,17 +6,18 @@ import (
 	"path/filepath"
 )
 
-type artwork struct {
-	track  *track
-	index  int
-	Format ArtworkFormat
+type Artwork struct {
+	track *Track
+	index int
+
+	format ArtworkFormat
 }
 
 // for compatibility
-func (_ *artwork) Close() {
+func (_ *Artwork) Close() {
 }
 
-func (a *artwork) SaveToFile(directory, name string) (string, error) {
+func (a *Artwork) SaveToFile(directory, name string) (string, error) {
 	directory, err := filepath.Abs(directory)
 	if err != nil {
 		return "", err

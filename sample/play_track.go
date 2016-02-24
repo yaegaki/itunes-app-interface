@@ -40,7 +40,7 @@ func Test() error {
 	// play track that contains `word` in the title.
 	word := s(strings.Join(os.Args[1:], ""))
 	for track := range output {
-		name := track.Name
+		name := track.Name()
 		if strings.Contains(s(name), word) {
 			log.Printf("Play: %v", name)
 			err = track.Play()

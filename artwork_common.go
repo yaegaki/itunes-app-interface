@@ -37,3 +37,7 @@ func (a ArtworkFormat) Ext() string {
 	return ""
 
 }
+
+func (a *Artwork) Format() ArtworkFormat {
+	return a.format
+}

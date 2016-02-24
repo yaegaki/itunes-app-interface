@@ -126,7 +126,7 @@ func TestItunesControls(t *testing.T) {
 	testPlayerState(t, it, Stopped)
 }
 
-func testPlayerState(t *testing.T, it *itunes, expect PlayerState) {
+func testPlayerState(t *testing.T, it *Itunes, expect PlayerState) {
 	ps, err := it.PlayerState()
 	if err != nil {
 		t.Errorf("PlayerState failed.\n%v", err)
@@ -137,7 +137,7 @@ func testPlayerState(t *testing.T, it *itunes, expect PlayerState) {
 	}
 }
 
-func testPlayerPosition(t *testing.T, it *itunes, expect int) {
+func testPlayerPosition(t *testing.T, it *Itunes, expect int) {
 	err := it.SetPlayerPosition(expect)
 	if err != nil {
 		t.Errorf("SetPlayerPosition failed.\n%v", err)
@@ -153,7 +153,7 @@ func testPlayerPosition(t *testing.T, it *itunes, expect int) {
 	}
 }
 
-func testBackTrack(t *testing.T, it *itunes) {
+func testBackTrack(t *testing.T, it *Itunes) {
 	err := it.BackTrack()
 	if err != nil {
 		t.Errorf("BackTrack failed.\n%v", err)
@@ -169,7 +169,7 @@ func testBackTrack(t *testing.T, it *itunes) {
 	}
 }
 
-func testNextTrack(t *testing.T, it *itunes, track *track) {
+func testNextTrack(t *testing.T, it *Itunes, track *Track) {
 	err := it.NextTrack()
 	if err != nil {
 		t.Errorf("NextTrack failed.\n%v", err)
@@ -186,7 +186,7 @@ func testNextTrack(t *testing.T, it *itunes, track *track) {
 	}
 }
 
-func testPreviousTrack(t *testing.T, it *itunes, track *track) {
+func testPreviousTrack(t *testing.T, it *Itunes, track *Track) {
 	err := it.PreviousTrack()
 	if err != nil {
 		t.Errorf("PreviousTrack failed.\n%v", err)

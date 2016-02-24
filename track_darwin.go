@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-type track struct {
+type Track struct {
 	persistentID string
 
-	Album  string
-	Artist string
-	Name   string
+	album  string
+	artist string
+	name   string
 }
 
-func createTrack(values []string) (*track, error) {
+func createTrack(values []string) (*Track, error) {
 	if len(values) == 0 {
 		return nil, errors.New("values is empty.")
 	}
@@ -37,22 +37,22 @@ func createTrack(values []string) (*track, error) {
 		name = values[3]
 	}
 
-	track := &track{
+	track := &Track{
 		persistentID: persistentID,
 
-		Album:  album,
-		Artist: artist,
-		Name:   name,
+		album:  album,
+		artist: artist,
+		name:   name,
 	}
 
 	return track, nil
 }
 
 // for compatibility
-func (_ *track) Close() {
+func (_ *Track) Close() {
 }
 
-func (t *track) Play() error {
+func (t *Track) Play() error {
 	o, err := execAS(fmt.Sprintf(playTrackScript, t.persistentID))
 	if err != nil {
 		return nil
@@ -66,13 +66,13 @@ func (t *track) Play() error {
 	return nil
 }
 
-func (t *track) GetArtworks() (chan *artwork, error) {
+func (t *Track) GetArtworks() (chan *Artwork, error) {
 	formats, err := execAS(fmt.Sprintf(getArtworksScript, t.Name))
 	if err != nil {
 		return nil, err
 	}
 
-	output := make(chan *artwork)
+	output := make(chan *Artwork)
 	go func() {
 		defer close(output)
 		index := 1
@@ -97,10 +97,10 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 				continue
 			}
 
-			output <- &artwork{
-				track:  t,
+			output <- &Artwork{
+				Track:  t,
 				index:  index,
-				Format: format,
+				format: format,
 			}
 			index++
 		}
@@ -109,6 +109,6 @@ func (t *track) GetArtworks() (chan *artwork, error) {
 	return output, nil
 }
 
-func (t *track) PersistentID() string {
+func (t *Track) PersistentID() string {
 	return t.persistentID
 }

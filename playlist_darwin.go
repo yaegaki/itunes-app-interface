@@ -7,12 +7,13 @@ import (
 	"strconv"
 )
 
-type playlist struct {
+type Playlist struct {
 	persistentID string
-	Name         string
+
+	name string
 }
 
-func createPlaylist(values []string) (*playlist, error) {
+func createPlaylist(values []string) (*Playlist, error) {
 	persistentID := values[0]
 
 	count := len(values)
@@ -23,20 +24,20 @@ func createPlaylist(values []string) (*playlist, error) {
 		name = values[1]
 	}
 
-	p := &playlist{
+	p := &Playlist{
 		persistentID: persistentID,
 
-		Name: name,
+		name: name,
 	}
 
 	return p, nil
 }
 
 // for compatibility
-func (p *playlist) Close() {
+func (p *Playlist) Close() {
 }
 
-func (p *playlist) TrackCount() (int, error) {
+func (p *Playlist) TrackCount() (int, error) {
 	columns, err := getColumnsByJS(fmt.Sprintf(`p(findPlaylistByPersistentId("%v").tracks.length);`, p.persistentID))
 	if err != nil {
 		return 0, err
@@ -53,7 +54,7 @@ func (p *playlist) TrackCount() (int, error) {
 	return int(count), nil
 }
 
-func (p *playlist) GetTrack(index int) (t *track, err error) {
+func (p *Playlist) GetTrack(index int) (t *Track, err error) {
 	columns, err := getColumnsByJS(fmt.Sprintf(`logTrack(findPlaylistByPersistentId("%v").tracks[%v]());`, p.persistentID, index))
 	if err != nil {
 		return nil, err
@@ -61,14 +62,14 @@ func (p *playlist) GetTrack(index int) (t *track, err error) {
 
 	return createTrack(columns)
 }
-func (p *playlist) GetTracks() (chan *track, error) {
+func (p *Playlist) GetTracks() (chan *Track, error) {
 	log.Println(p.GetTrack(0))
 	o, err := execJS(fmt.Sprintf(`findPlaylistByPersistentId("%v").tracks().forEach(logTrack);`, p.persistentID))
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(chan *track)
+	result := make(chan *Track)
 	go func() {
 		defer close(result)
 		for line := range o {
@@ -91,24 +92,24 @@ func (p *playlist) GetTracks() (chan *track, error) {
 	return result, nil
 }
 
-func (p *playlist) PersistentID() string {
+func (p *Playlist) PersistentID() string {
 	return p.persistentID
 }
 
-func (p *playlist) PlayFirstTrack() error {
+func (p *Playlist) PlayFirstTrack() error {
 	_, err := getColumnsByJS(fmt.Sprintf(`findPlaylistByPersistentId("%v")`, p.persistentID))
 	return err
 }
 
-func (p *playlist) SetShuffle(isShuffle bool) error {
+func (p *Playlist) SetShuffle(isShuffle bool) error {
 	return errors.New("SetShuffle is not support on OSX.")
 }
 
-func (p *playlist) Shuffle() (bool, error) {
+func (p *Playlist) Shuffle() (bool, error) {
 	return false, errors.New("Shuffle is not support on OSX.")
 }
 
-func (p *playlist) AddTrack(t *track) (result *track, err error) {
+func (p *Playlist) AddTrack(t *Track) (result *Track, err error) {
 	columns, err := getColumnsByAS(fmt.Sprintf(`P(AddTrackToPlaylist("%v", "%v"))`, t.persistentID, p.persistentID))
 	if err != nil {
 		return nil, err
@@ -121,7 +122,7 @@ func (p *playlist) AddTrack(t *track) (result *track, err error) {
 	return findTrackByPersistentID(columns[0])
 }
 
-func (p *playlist) Delete() error {
+func (p *Playlist) Delete() error {
 	_, err := getColumnsByJS(fmt.Sprintf(`findPlaylistByPersistentId("%v").delete()`, p.persistentID))
 
 	return err

@@ -36,7 +36,7 @@ func Test() error {
 	}
 	defer t.Close()
 
-	log.Printf("Play: %v %v %v", t.Name, t.Artist, t.Album)
+	log.Printf("Play: %v %v %v", t.Name(), t.Artist(), t.Album())
 	t.Play()
 
 	return nil

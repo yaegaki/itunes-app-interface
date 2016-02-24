@@ -24,13 +24,13 @@ func (p PlayerState) String() string {
 	return ""
 }
 
-func (it *itunes) GetAllTracks() ([]*track, error) {
+func (it *Itunes) GetAllTracks() ([]*Track, error) {
 	output, err := it.GetTracks()
 	if err != nil {
 		return nil, err
 	}
 
-	tracks := make([]*track, 0, 100)
+	tracks := make([]*Track, 0, 100)
 	for track := range output {
 		tracks = append(tracks, track)
 	}
